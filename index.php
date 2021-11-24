@@ -1,9 +1,13 @@
 <?php
-
 header('Content-Type: text/plain; charset=utf-8');
 
+$config = require('config.php');
+
+if(getBearerToken() !== $config['password']) {
+    return;
+}
+
 try {
-   
     // Undefined | Multiple Files | $_FILES Corruption Attack
     // If this request falls under any of them, treat it invalid.
     if (
@@ -58,11 +62,37 @@ try {
         throw new RuntimeException('Failed to move uploaded file.');
     }
 
-    echo 'http://' . $_SERVER['HTTP_HOST'] . substr($filename, 1);
+    echo $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . substr($filename, 1);
 
 } catch (RuntimeException $e) {
-
     echo $e->getMessage();
-
 }
-?>
+
+/**
+ * Get hearder Authorization
+ * */
+function getAuthorizationHeader(): ?string {
+    $headers = null;
+    if (isset($_SERVER['Authorization'])) {
+        $headers = trim($_SERVER["Authorization"]);
+    }
+    else if (isset($_SERVER['HTTP_AUTHORIZATION'])) { //Nginx or fast CGI
+        $headers = trim($_SERVER["HTTP_AUTHORIZATION"]);
+    }
+
+    return $headers;
+}
+
+/**
+ * get access token from header
+ * */
+function getBearerToken() {
+    $headers = getAuthorizationHeader();
+    // HEADER: Get the access token from the header
+    if (!empty($headers)) {
+        if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
+            return $matches[1];
+        }
+    }
+    return null;
+}
